@@ -25,3 +25,35 @@ request.onsuccess = ({target}) => {
 request.onerror = function(event) {
   console.log('something went wrong', event.target.errorCode);
 };
+
+function saveRecord(record) {
+  const transaction = db.transaction(['pending'], 'readwrite');
+  const store = transaction.createObjectStore('pending');
+  store.onupgradeneeded(record);
+};
+
+function checkDatabase() {
+  const transaction = db.transaction(['pending'], 'readwrite');
+  const store = transaction.createObjectStore('pending');
+  const getAll =  store.getAll();
+  getAll.onsuccess = function() {
+    if (getAll.result.length > 0) {
+      fetch('/api/transaction/bulk', {
+        method: 'POST',
+        body: JSON.stringify(getAll.result),
+        headers: {
+          Accept: 'application/json, text/plain, */*', 
+          'Content-Type': 'application/json'
+        }
+      }).then(response => {
+        return response.json();
+      }).then(() => {
+        const transaction = db.transaction(['pending'], 'readwrite');
+        const store = transaction.createObjectStore('pending');
+        store.clear();
+      })
+    }
+  }
+}
+
+window.addEventListener('online', checkDatabase);
